@@ -1,0 +1,231 @@
+#!/usr/bin/env perl
+###########################################################################
+##### #
+##### check_cert.pl -- check HTTPS, IMAPS, LDAPS or SMTP (with #
+##### STARTTLS) certificate expiration and, optionally, naming. #
+##### #
+############| mike ryan -- 02/03/06, 14:15 |#########
+
+use 5.6.1;
+use strict;
+use warnings;
+no warnings qw(redefine);
+
+use Date::Parse qw(str2time);
+use English;
+use Getopt::Long;
+use URI;
+
+use lib '/usr/local/nagios/libexec';
+use utils qw(%ERRORS);
+
+sub usage {
+    my %params = @_;
+
+    if (defined($params{'message'})) {
+        my $message = $params{'message'};
+        $message =~ s/\n*$/\n/s;
+        print STDERR $message;
+    }
+
+    if (!defined($params{'error'}) || $params{'error'}) {
+        print "UNKNOWN: bad usage\n";
+        exit($ERRORS{'UNKNOWN'});
+    }
+
+    print STDERR <<EOF;
+Usage: $PROGRAM_NAME --warn=<days> --critical=<days> --name=<hostname> --url=<full url with protocol> [<options>]
+--critical=<days> number of days before certificate expiration
+to return a critical status
+
+--help display this message
+
+--url=<url> URL to check. supported schemes: file,
+https, imaps, ldaps, smtp, smtps.
+
+--name=<name> expected name on certificate
+
+--warning=<days> number of days before certificate expiration
+to return a warning status
+EOF
+
+}
+
+###########################################################################
+##### #
+##### init. #
+##### #
+###########################################################################
+
+my %opt;
+GetOptions(\%opt,
+    'critical=i',
+    'help',
+    'name=s',
+    'url=s',
+    'warning=i',
+    ) || usage();
+
+if (defined($opt{'help'})) {
+    usage();
+}
+
+# check for required options
+foreach my $option (qw{critical warning url}) {
+    if (!defined($opt{$option})) {
+        usage(message => "--$option required");
+    }
+}
+
+# check URL scheme type
+my $uri = URI->new($opt{'url'});
+my $scheme = lc($uri->scheme);
+if (!defined($scheme) || ($scheme eq '')) {
+    usage(message => "invalid URL");
+}
+
+###########################################################################
+##### #
+##### retrieve certificate #
+##### #
+###########################################################################
+
+my $certdata;
+
+my $host = $uri->opaque();
+$host =~ s/^\/+//;
+my $port = undef;
+if ($host =~ s/:(\d+)//) {
+    $port = $1;
+}
+$host ||= 'localhost';
+
+
+if ($scheme eq 'file') {
+    $certdata = read_file($uri->path());
+
+} elsif ($scheme eq 'https') {
+    $port ||= 443;
+    $certdata = s_client("", "-connect $host:$port");
+
+} elsif ($scheme eq 'imaps') {
+    $port ||= 993;
+    $certdata = s_client(". logout", "-connect $host:$port");
+
+} elsif ($scheme eq 'ldaps') {
+    $port ||= 636;
+    $certdata = s_client("", "-connect $host:$port");
+
+} elsif ($scheme eq 'smtp') {
+    $port ||= 25;
+    $certdata = s_client("quit", "-starttls smtp -connect $host:$port");
+
+} elsif ($scheme eq 'smtps') {
+    $port ||= 465;
+    $certdata = s_client("quit", "-connect $host:$port");
+
+} else {
+    usage(message => "unsupported scheme ($scheme)");
+}
+
+if (!defined($certdata)) {
+    print "UNKNOWN: failed to retrieve certificate data\n";
+    print "$certdata";
+    exit($ERRORS{'UNKNOWN'});
+}
+
+# make sure certificate validity isn't in the future.
+my $check_start_time = time;
+if (!defined($certdata->{'not_before'})) {
+    print "UNKNOWN: failed to parse Not Before validity\n";
+    exit($ERRORS{'UNKNOWN'});
+}
+if ($check_start_time < $certdata->{'not_before'}) {
+    printf("CRITICAL: certificate not valid until %s\n", scalar(localtime($certdata->{'not_before'})));
+    exit($ERRORS{'CRITICAL'});
+}
+
+# make sure certificate validity isn't in the past.
+if (!defined($certdata->{'not_after'})) {
+    print "UNKNOWN: failed to parse Not After validitiy\n";
+    exit($ERRORS{'UNKNOWN'});
+}
+if ($check_start_time > $certdata->{'not_after'}) {
+    printf("CRITICAL: certificate expired %s\n", scalar(localtime($certdata->{'not_after'})));
+    exit($ERRORS{'CRITICAL'});
+}
+
+# check for impending expiration.
+my $expires_in = int(($certdata->{'not_after'} - $check_start_time) / (24*60*60));
+if ($expires_in <= $opt{'critical'}) {
+    printf("CRITICAL: certificate expires in $expires_in days (%s)\n", scalar(localtime($certdata->{'not_after'})));
+    exit($ERRORS{'CRITICAL'});
+}
+if ($expires_in <= $opt{'warning'}) {
+    printf("WARNING: certificate expires in $expires_in days (%s)\n", scalar(localtime($certdata->{'not_after'})));
+    exit($ERRORS{'WARNING'});
+}
+
+# optionally check for name mismatch.
+if (defined($opt{'name'})) {
+    if (!defined($certdata->{'cn'})) {
+        print "UNKNOWN: failed to parse certificate host name\n";
+        exit($ERRORS{'UNKNOWN'});
+    }
+    if (lc($opt{'name'}) ne lc($certdata->{'cn'})) {
+        printf("CRITICAL: certificate host name mismatch (expected %s, got %s)\n", $opt{'name'}, $certdata->{'cn'});
+        exit($ERRORS{'CRITICAL'});
+    }
+}
+
+# note good certificate.
+printf("OK: certificate expires in %d days (%s)\n", $expires_in, scalar(localtime($certdata->{'not_after'})));
+exit($ERRORS{'OK'});
+
+###########################################################################
+##### #
+##### certificate retrieval functions. #
+##### #
+###########################################################################
+
+sub s_client {
+    my ($command, $arguments) = @_;
+    #print STDERR "command: $command\narguments: $arguments\n";
+
+    #return(parse_certificate(scalar(`echo $command | openssl s_client $arguments 2>/dev/null | openssl x509 -text 2>/dev/null`)));
+    return(parse_certificate(scalar(`echo $command | openssl s_client $arguments 2>&1 | openssl x509 -text 2>/dev/null`)));
+}
+
+sub read_file {
+    my ($filename) = @_;
+
+    return(parse_certificate(scalar(`/usr/local/bin/openssl x509 -in $filename -text 2>/dev/null`)));
+}
+
+sub parse_certificate {
+    my ($text) = @_;
+
+    my %result;
+
+    foreach my $line (split(/[\r\n]+/, $text)) {
+        if ($line =~ /^\s+Not Before: (.*)$/ ){
+            #print STDERR "DEBUG before: $line\n";
+            $result{'not_before'} = str2time($1);
+        } elsif ($line =~ /^\s+Not After : (.*)$/ ){
+            #print STDERR "DEBUG after: $line\n";
+            $result{'not_after'} = str2time($1);
+        } elsif ($line =~ /^\s+Subject:.*CN=(.*)$/ ){
+            #print STDERR "DEBUG CN: $line\n";
+            $result{'cn'} = $1;
+        #} else {
+        #    print STDERR "DEBUG: $line\n";
+        }
+    }
+
+    if (scalar(keys(%result)) == 0) {
+        print("CRITICAL: failed to retrieve certificate\n");
+        exit($ERRORS{'CRITICAL'});
+    }
+
+    return(\%result);
+}

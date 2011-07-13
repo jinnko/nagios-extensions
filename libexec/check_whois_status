@@ -1,0 +1,145 @@
+#!/usr/bin/perl
+
+# (C) Duane Wessels, wessels@measurement-factory.com
+#
+# $Id: check_whois,v 1.3 2008/07/11 00:23:33 wessels Exp $
+#
+# check_whois
+#
+# nagios plugin to check the expiration date of a domain.
+
+# usage
+#
+# define command {
+#   command_name	check-whois
+#   command_line	/usr/local/libexec/nagios-local/check_whois $HOSTADDRESS$
+# }
+#
+# define service {
+#   name				   whois-service
+#   check_command		  check-whois
+#   ...
+# }
+#
+# define host {
+#   use dns-zone
+#   host_name zone.example.com
+#   alias ZONE example.com
+# }
+#
+# define service {
+#   use whois-service
+#   host_name zone.example.com
+# }
+
+
+use strict;
+use warnings;
+
+use Getopt::Std;
+use Date::Manip;
+use POSIX qw(strftime);
+
+my %opts;
+getopts('x', \%opts);
+
+#if ($opts->{h}) {
+#	# Print version number
+#	print "2";
+#	exit 0;
+#}
+my $debug = 0;
+my $name = shift or die "usage: $0 domain\n";
+$name =~ s/^zone\.//;
+grok($name);
+exit 0;
+
+sub grok {
+	my $name = shift || die;
+	open (CMD, "whois -H $name|") || die;
+	my $registrar = undef;
+	my $expires = undef;
+	my $status = '';
+	print STDERR "checking $name\n" if ($debug);
+	while (<CMD>) {
+		tr/A-Z/a-z/;
+
+		if ( /no match/i ) {
+			critical("No match found for $name");
+		} else {
+			$registrar = $1 if (/Registrar:\s*(.*)/i);
+			$registrar = $1 if (/Registrar ID:\s*(.*)/i);
+			$registrar = $1 if (/Registrar Handle\.*:\s*(.*)/i);
+
+			if (/expiration date:\s*(\d\d-\w\w\w-\d\d\d\d)/i) {
+					$expires = $1;
+			} elsif (/record expires on (.*)/i) {
+					$expires = $1;
+			} elsif (/^expires:\s+([-\w]+)/i) {
+					$expires = $1;
+			} elsif (/^domain expiration date:\s+(.*)/i) {
+					$expires = $1;
+			} elsif (/Renewal date:\s+(.*)/i) {
+					$expires = $1;
+			} elsif (/Expiration Date:\s+(.*)/i) {
+					$expires = $1;
+			}
+
+			$status = $1 if (/Status:\s*(.*)/i);
+		}
+	}
+	close(CMD);
+
+	if (defined $registrar) {
+		$registrar = 'gandi' if ($registrar eq 'r42-lror');
+		$registrar = 'go daddy' if ($registrar =~ /go daddy/);
+		$registrar = 'go daddy' if ($registrar eq 'r91-lror');
+	} elsif (defined $opts{x}) {
+		$registrar = 'UNKNOWN';
+	} else {
+		$registrar = 'UNKNOWN';
+		#critical("Didn't find Registrar");
+	}
+
+	my $t;
+	#if (defined $status) {
+	#	success("$name registered by $registrar and is $status") unless ($status =~ /ok/i);
+	#}
+	success("$name registered by $registrar is $status and expires $expires");
+	#} elsif (defined $expires) {
+	#	$t = UnixDate($expires, "%s");
+	#	critical("Invalid expiration time '$expires'") unless defined $t;
+	#	critical("Invalid expiration time '$expires'") if ($t < 0);
+	#	$expires = strftime("%Y-%m-%d", localtime($t));
+	#} elsif (defined $opts{x}) {
+	#	$t = time + (86400 * 90);
+	#	$expires = 'UNKNOWN';
+	#} else {
+	#		critical("Didn't find expiration timestamp");
+	#}
+
+	#critical("Expires $expires at $registrar") if ($t - time < (86400*7));
+	#warning ("Expires $expires at $registrar") if ($t - time < (86400*28));
+	#success ("Expires $expires at $registrar");
+}
+
+sub success {
+		output('OK', shift);
+		exit(0);
+}
+
+sub warning {
+		output('WARNING', shift);
+		exit(1);
+}
+
+sub critical {
+		output('CRITICAL', shift);
+		exit(2);
+}
+
+sub output {
+		my $state = shift;
+		my $msg = shift;
+		printf "WHOIS %s: %s\n", $state, $msg;
+}
