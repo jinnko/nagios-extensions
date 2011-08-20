@@ -108,7 +108,9 @@ $SIG{'ALRM'} = sub {
     $np->nagios_exit( CRITICAL, 'ERROR: Timed out.' );
 };
 
-my ( $code, $message ) = ( OK, 'All parameters OK' );
+#my ( $code, $message ) = ( OK, 'All parameters OK' );
+my ( $code, $message ) = ( undef, undef );
+$np->add_message( OK, "All parameters OK" );
 
 my @fields;
 if ( not $np->opts->perfdata ) {
@@ -121,25 +123,48 @@ else {
 }
 
 # Add all performance data
+my $thresholds;
+my $value;
+my $warning;
+my $critical;
+my $minimum;
+my $maximum;
 foreach my $key (@fields) {
+    if ( $key =~ /=/ ) {
+        ($key, $thresholds) = split( /=/, $key );
+        ($warning, $critical) = split ( /;/, $thresholds );
+    } else {
+        $thresholds = undef;
+        $warning = undef;
+        $critical = undef;
+    }
     if ( $mysql->{'stats'}->{$key}->{'type'} eq 'ABS' ) {
         next if ( not defined $read_data->{$key} );
-        $np->add_perfdata(
-            'label' => $key,
-            'value' => $read_data->{$key},
-            'uom'   => '',
-        );
-    }
-    elsif ( $mysql->{'stats'}->{$key}->{'type'} eq 'DERIVE' ) {
+        $value = $read_data->{$key};
+    } elsif ( $mysql->{'stats'}->{$key}->{'type'} eq 'DERIVE' ) {
         next if ( not defined $stat->{$key} );
-        $np->add_perfdata(
-            'label' => $key,
-            'value' => $stat->{$key},
-            'uom'   => '',
+        $value = $stat->{$key};
+    }
+    $np->add_perfdata(
+        'label' => $key,
+        'value' => $value,
+        'uom'   => '',
+        'warning' => $warning,
+        'critical' => $critical,
+    );
+    if ( $thresholds ) {
+        #$message = "$message, key={$key}, warning={$warning}, critical={$critical}";
+        $code = $np->check_threshold(
+            'check' => $value,
+            'warning' => $warning,
+            'critical' => $critical,
         );
+        if ( $code ) {
+            $np->add_message($code, "$key beyond thresholds,");
+        }
     }
 }
-
+($code, $message) = $np->check_messages();
 $np->nagios_exit( $code, $message );
 
 package MySQL::Stats;
