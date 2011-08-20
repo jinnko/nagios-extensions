@@ -108,7 +108,6 @@ $SIG{'ALRM'} = sub {
     $np->nagios_exit( CRITICAL, 'ERROR: Timed out.' );
 };
 
-#my ( $code, $message ) = ( OK, 'All parameters OK' );
 my ( $code, $message ) = ( undef, undef );
 $np->add_message( OK, "All parameters OK" );
 
@@ -118,8 +117,6 @@ if ( not $np->opts->perfdata ) {
 }
 else {
     @fields = split( /,/, $np->opts->perfdata );
-
-    # @fields = split /,/, join ',', @{$np->opts->perfdata};
 }
 
 # Add all performance data
@@ -153,7 +150,6 @@ foreach my $key (@fields) {
         'critical' => $critical,
     );
     if ( $thresholds ) {
-        #$message = "$message, key={$key}, warning={$warning}, critical={$critical}";
         $code = $np->check_threshold(
             'check' => $value,
             'warning' => $warning,
