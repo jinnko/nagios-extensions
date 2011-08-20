@@ -11,9 +11,9 @@ use Nagios::Plugin;
 
 my $np = Nagios::Plugin->new(
     'usage' => <<EOH,
-Usage: %s [-H host] [-d DSN] -u -p --group
+Usage: %s [-H host] [-d DSN] [--perfdata ] [[-u] [-p]|--extra-opts=[section][\@file]]  --group
 EOH
-    'version' => '1.00',
+    'version' => '1.10',
     'url'     => 'http://www.capside.com',
     'extra'   => <<EOH,
 
@@ -21,16 +21,15 @@ Threshold formats are specified at:
     http://nagiosplug.sourceforge.net/developer-guidelines.html#THRESHOLDFORMAT
 
     'blurb' => qq{Copyright (c) CAPSiDE.
-
-This plugin montitors the % use of CPU usage on Linux systems for various types of CPU usage.
 EOH
 );
 
 $np->add_arg(
     spec => 'perfdata=s',
     help => <<EOH,
---perfdata performance data to output
-  Host to query
+--perfdata  performance data to check and output
+   e.g. metric[=warn_range;][critcal_range],metric,...
+   note semicolons will need escaping when entered in the UI
 EOH
     required => 0,
 );
