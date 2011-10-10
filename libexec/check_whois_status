@@ -72,17 +72,17 @@ sub grok {
 			$registrar = $1 if (/Registrar Handle\.*:\s*(.*)/i);
 
 			if (/expiration date:\s*(\d\d-\w\w\w-\d\d\d\d)/i) {
-					$expires = $1;
+				$expires = $1;
 			} elsif (/record expires on (.*)/i) {
-					$expires = $1;
+				$expires = $1;
 			} elsif (/^expires:\s+([-\w]+)/i) {
-					$expires = $1;
+				$expires = $1;
 			} elsif (/^domain expiration date:\s+(.*)/i) {
-					$expires = $1;
+				$expires = $1;
 			} elsif (/Renewal date:\s+(.*)/i) {
-					$expires = $1;
+				$expires = $1;
 			} elsif (/Expiration Date:\s+(.*)/i) {
-					$expires = $1;
+				$expires = $1;
 			}
 
 			$status = $1 if (/Status:\s*(.*)/i);
@@ -98,48 +98,39 @@ sub grok {
 		$registrar = 'UNKNOWN';
 	} else {
 		$registrar = 'UNKNOWN';
-		#critical("Didn't find Registrar");
+#critical("Didn't find Registrar");
 	}
 
 	my $t;
-	#if (defined $status) {
-	#	success("$name registered by $registrar and is $status") unless ($status =~ /ok/i);
-	#}
-	success("$name registered by $registrar is $status and expires $expires");
-	#} elsif (defined $expires) {
-	#	$t = UnixDate($expires, "%s");
-	#	critical("Invalid expiration time '$expires'") unless defined $t;
-	#	critical("Invalid expiration time '$expires'") if ($t < 0);
-	#	$expires = strftime("%Y-%m-%d", localtime($t));
-	#} elsif (defined $opts{x}) {
-	#	$t = time + (86400 * 90);
-	#	$expires = 'UNKNOWN';
-	#} else {
-	#		critical("Didn't find expiration timestamp");
-	#}
+	if (defined $expires) {
+		$t = UnixDate($expires, "%s");
+		critical("Invalid expiration time '$expires'") unless defined $t;
+		critical("Unknown expiration time '$expires'") if ($t < 0);
+		$expires = strftime("%Y-%m-%d", localtime($t));
+	}
 
-	#critical("Expires $expires at $registrar") if ($t - time < (86400*7));
-	#warning ("Expires $expires at $registrar") if ($t - time < (86400*28));
-	#success ("Expires $expires at $registrar");
+	critical("$name registered by $registrar is $status and expires $expires") if ($t - time < (86400*7));
+	warning ("$name registered by $registrar is $status and expires $expires") if ($t - time < (86400*28));
+	success("$name registered by $registrar is $status and expires $expires");
 }
 
 sub success {
-		output('OK', shift);
-		exit(0);
+	output('OK', shift);
+	exit(0);
 }
 
 sub warning {
-		output('WARNING', shift);
-		exit(1);
+	output('WARNING', shift);
+	exit(1);
 }
 
 sub critical {
-		output('CRITICAL', shift);
-		exit(2);
+	output('CRITICAL', shift);
+	exit(2);
 }
 
 sub output {
-		my $state = shift;
-		my $msg = shift;
-		printf "WHOIS %s: %s\n", $state, $msg;
+	my $state = shift;
+	my $msg = shift;
+	printf "WHOIS %s: %s\n", $state, $msg;
 }
