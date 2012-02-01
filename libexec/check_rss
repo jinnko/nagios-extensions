@@ -12,16 +12,16 @@ pkl_path = '/tmp/raspberrypi.pkl'
 def load_persistence():
     try:
         f_pkl = open(pkl_path, 'rb')
-        prev_mod, title = cPickle.load(f_pkl)
+        persistence = cPickle.load(f_pkl)
         f_pkl.close()
-        return prev_mod, title
+        return persistence
 
     except IOError, e:
         return None
 
-def save_persistence(last_mod, title):
+def save_persistence(persistence):
     f_pkl = open(pkl_path, 'wb')
-    cPickle.dump([last_mod, title], f_pkl, -1)
+    cPickle.dump(persistence, f_pkl, -1)
     f_pkl.close()
 
 def latest_post():
@@ -64,18 +64,19 @@ def main():
     title = latest_post()
 
     # Get the previous last_modified value
-    prev_mod, title = load_persistence()
+    persistence = load_persistence()
 
-    if prev_mod == last_mod or prev_title == title:
+    if persistence is None:
+        save_persistence({'last_mod': last_mod, 'title': title})
+        print "New post published on %s: %s.  ##root@ht-mn-1 $ rm %s" % (time.strftime('%Y-%m-%d %H:%M', last_mod), title, pkl_path)
+        exit(2)
+
+    if persistence['last_mod'] == last_mod or persistence['title'] == title:
         print "No new posts found since %s." % ( time.strftime('%Y-%m-%d %H:%M', last_mod) )
         exit(0)
 
-    if prev_mod is None:
-        save_persistence(last_mod, title)
-
-
-    print "New post published on %s: %s.  Log in to ht-mn-1 and 'rm %s' to clear this nag." % (time.strftime('%Y-%m-%d %H:%M', last_mod), title, pkl_path)
-    exit(2)
+    print "Unkown status"
+    exit(1)
 
 if __name__ == "__main__":
     main()
