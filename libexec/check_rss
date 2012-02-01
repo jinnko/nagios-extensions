@@ -1,4 +1,9 @@
 #!/usr/bin/python
+#
+# exit(0) = OK, used when no change or service not responding gracefully
+# exit(1) = WARNING, only used when no conditions have been caught
+# exit(2) = CRITICAL, indicates a new post has been published
+# exit(3) = UNKNOWN, not used
 
 import httplib
 import time
@@ -45,7 +50,7 @@ def main():
     try:
         res = conn.getresponse()
     except:
-        print "Check failed."
+        print "Unable to connect to host %s." % ( feed_url["host"] )
         exit(0)
 
     if res.status == 500:
@@ -68,11 +73,11 @@ def main():
 
     if persistence is None:
         save_persistence({'last_mod': last_mod, 'title': title})
-        print "New post published on %s: %s.  ##root@ht-mn-1 $ rm %s" % (time.strftime('%Y-%m-%d %H:%M', last_mod), title, pkl_path)
+        print "New post published on %s: %s.  ## root@ht-mn-1 $ rm %s" % (time.strftime('%Y-%m-%d %H:%M', last_mod), title, pkl_path)
         exit(2)
 
     if persistence['last_mod'] == last_mod or persistence['title'] == title:
-        print "No new posts found since %s." % ( time.strftime('%Y-%m-%d %H:%M', last_mod) )
+        print "No new post found since %s: %s." % ( time.strftime('%Y-%m-%d %H:%M', last_mod), title )
         exit(0)
 
     print "Unkown status"
