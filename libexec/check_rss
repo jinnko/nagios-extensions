@@ -80,8 +80,10 @@ def main():
         print "No new post found since %s: %s." % ( time.strftime('%Y-%m-%d %H:%M', last_mod), title )
         exit(0)
 
-    print "Unkown status"
-    exit(1)
+    else:
+        print "New post published on %s: %s.  ## root@ht-mn-1 $ rm %s" % (time.strftime('%Y-%m-%d %H:%M', last_mod), title, pkl_path)
+        exit(2)
+
 
 if __name__ == "__main__":
     main()
