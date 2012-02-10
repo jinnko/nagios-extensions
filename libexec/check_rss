@@ -14,7 +14,7 @@ import feedparser
 import cPickle
 from sys import exit
 
-feed_url = {"host": "www.raspberrypi.org", "path": "/feed/rss2"}
+feed_url = {"host": "www.raspberrypi.org", "path": "/feed"}
 pkl_path = '/tmp/raspberrypi.pkl'
 
 def load_persistence():
@@ -52,34 +52,34 @@ def latest_post():
     return title
 
 def main():
-    conn = httplib.HTTPConnection(feed_url["host"])
-    headers = { "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", 
-     "Accept-Charset": "ISO-8859-1,utf-8;q=0.7,*;q=0.7",
-     "Accept-Language": "en-us,en;q=0.5",
-     "Accept-Encoding": "gzip, deflate",
-     "Cache-Control": "max-age=0",
-     "Connection": "keep-alive",
-     "DNT": "1",
-     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:9.0.1) Gecko/20100101 Firefox/9.0.1"
-    }
-    conn.request("HEAD", feed_url["path"], "", headers)
-    try:
-        res = conn.getresponse()
-    except:
-        print "Unable to connect to host %s." % ( feed_url["host"] )
-        exit(0)
+    #conn = httplib.HTTPConnection(feed_url["host"])
+    #headers = { "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", 
+    # "Accept-Charset": "ISO-8859-1,utf-8;q=0.7,*;q=0.7",
+    # "Accept-Language": "en-us,en;q=0.5",
+    # "Accept-Encoding": "gzip, deflate",
+    # "Cache-Control": "max-age=0",
+    # "Connection": "keep-alive",
+    # "DNT": "1",
+    # "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:9.0.1) Gecko/20100101 Firefox/9.0.1"
+    #}
+    #conn.request("HEAD", feed_url["path"], "", headers)
+    #try:
+    #    res = conn.getresponse()
+    #except:
+    #    print "Unable to connect to host %s." % ( feed_url["host"] )
+    #    exit(0)
 
-    if res.status == 500:
-        print "Internal Server Error"
-        exit(0)
+    #if res.status == 500:
+    #    print "Internal Server Error"
+    #    exit(0)
 
-    # Extract the "last-modified" header and convert to a tuple
-    last_modified = res.getheader('last-modified')
-    try:
-        last_mod = time.strptime(last_modified, '%a, %d %b %Y %H:%M:%S %Z')
-    except Exception, e:
-        print "Failed to fetch RSS HEAD.", e
-        exit(0)
+    ## Extract the "last-modified" header and convert to a tuple
+    #last_modified = res.getheader('last-modified')
+    #try:
+    #    last_mod = time.strptime(last_modified, '%a, %d %b %Y %H:%M:%S %Z')
+    #except Exception, e:
+    #    print "Failed to fetch RSS HEAD.", e
+    #    exit(0)
 
     title = latest_post()
 
@@ -87,19 +87,24 @@ def main():
     persistence = load_persistence()
 
     if persistence is None:
-        save_persistence({'last_mod': last_mod, 'title': title})
-        print "New post published on %s: %s.  ## root@ht-mn-1 $ rm %s" % (time.strftime('%Y-%m-%d %H:%M', last_mod), title, pkl_path)
+        #save_persistence({'last_mod': last_mod, 'title': title})
+        save_persistence({'title': title})
+        #print "New post published on %s: %s.  ## root@ht-mn-1 $ rm %s" % (time.strftime('%Y-%m-%d %H:%M', last_mod), title, pkl_path)
+        print "New post published: %s.  ## root@ht-mn-1 $ rm %s" % (title, pkl_path)
         exit(2)
 
-    if persistence['last_mod'] == last_mod or persistence['title'] == title:
+    #if persistence['last_mod'] == last_mod or persistence['title'] == title:
+    if persistence['title'] == title:
         try:
-            print "No new post found since %s: %s." % ( time.strftime('%Y-%m-%d %H:%M', last_mod), title )
+            #print "No new post found since %s: %s." % ( time.strftime('%Y-%m-%d %H:%M', last_mod), title )
+            print "No new post found: %s." % ( title )
         except:
             print title
         exit(0)
 
     else:
-        print "New post published on %s: %s.  ## root@ht-mn-1 $ rm %s" % (time.strftime('%Y-%m-%d %H:%M', last_mod), title, pkl_path)
+        #print "New post published on %s: %s.  ## root@ht-mn-1 $ rm %s" % (time.strftime('%Y-%m-%d %H:%M', last_mod), title, pkl_path)
+        print "New post published: %s.  ## root@ht-mn-1 $ rm %s" % (title, pkl_path)
         exit(2)
 
 
