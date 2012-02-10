@@ -33,6 +33,7 @@ def save_persistence(persistence):
     f_pkl.close()
 
 def latest_post():
+    feedparser.USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:9.0.1) Gecko/20100101 Firefox/9.0.1"
     try:
         feed = feedparser.parse('http://%s%s'%(feed_url["host"], feed_url["path"]))
     except:
