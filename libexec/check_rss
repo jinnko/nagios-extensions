@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# vim: set fileencoding=utf-8
+# vim: set fileencoding=utf-8 expandtab ts=4 sw=4 sts=4
 #
 # exit(0) = OK, used when no change or service not responding gracefully
 # exit(1) = WARNING, only used when no conditions have been caught
@@ -44,7 +44,7 @@ def latest_post():
     except:
         try:
             banned = feed["feed"]["subtitle"].replace('<p>', '').replace('</p>','')
-            print banned
+            print "Banned: ", banned
         except:
             print "Fetched feed data incomplete.", feed
         exit(1)
