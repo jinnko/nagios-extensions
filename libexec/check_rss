@@ -12,10 +12,20 @@ import time
 import httplib
 import feedparser
 import cPickle
-from sys import exit
+from sys import exit, argv
 
-feed_url = {"host": "www.raspberrypi.org", "path": "/feed"}
-pkl_path = '/tmp/raspberrypi.pkl'
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
+pretty = pp.pprint
+
+#feed_url = {"host": "www.raspberrypi.org", "path": "/feed"}
+#feed_url = {"host": "www.raspberrypi.com", "path": "/rss.php?type=rss"}
+try:
+    feed_url =  {"host": argv[1].split('/')[0], "path": "/" + argv[1].split('/')[1:][0].replace('QUERY', '?').replace('EQUALS', '=')}
+except Exception, e:
+    print e, argv[1].split('/')[1:]
+    exit()
+pkl_path = '/tmp/check_rss_%s.pkl' % (argv[1].split('/')[0])
 
 def load_persistence():
     try:
@@ -35,20 +45,26 @@ def save_persistence(persistence):
 def latest_post():
     feedparser.USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:9.0.1) Gecko/20100101 Firefox/9.0.1"
     try:
-        feed = feedparser.parse('http://%s%s'%(feed_url["host"], feed_url["path"]))
-    except:
-        print "Failed to fetch latest post title"
+        feed = feedparser.parse('http://%s%s'%(feed_url["host"], feed_url["path"]), referrer='http://%s/'%(feed_url["host"]))
+    except Exception, e:
+        print "Failed to fetch latest post title", e
         exit(0)
 
     try:
-        title = unicode(feed.entries[0]["title"], errors='ignore')
+        #title = unicode(feed.entries[0]["title"], errors='ignore')
+        title = feed.entries[0]["title"]
     except:
         try:
-            banned = feed["feed"]["subtitle"].replace('<p>', '').replace('</p>','')
-            print "Banned: ", banned
+            title = feed.entries[0]["isc_description"].replace('<p>', '').replace('</p>','')
         except:
-            print "Fetched feed data incomplete.", feed
-        exit(1)
+            try:
+                banned = feed["feed"]["subtitle"].replace('<p>', '').replace('</p>','')
+                print "Banned:", banned, 
+                pretty(feed)
+            except Exception, e:
+                print "Fetched feed data incomplete.  Error:", e
+                pretty(feed)
+            exit(1)
 
     return title
 
@@ -99,8 +115,8 @@ def main():
         try:
             #print "No new post found since %s: %s." % ( time.strftime('%Y-%m-%d %H:%M', last_mod), title )
             print "No new post found: %s." % ( title )
-        except:
-            print title
+        except Exception, e:
+            print title, "Error:", e
         exit(0)
 
     else:
