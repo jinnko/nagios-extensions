@@ -108,6 +108,10 @@ if ($scheme eq 'file') {
     $port ||= 443;
     $certdata = s_client("", "-connect $host:$port");
 
+} elsif ($scheme eq 'https-tls1') {
+    $port ||= 443;
+    $certdata = s_client("", "-connect $host:$port -tls1 -servername $host");
+
 } elsif ($scheme eq 'imaps') {
     $port ||= 993;
     $certdata = s_client(". logout", "-connect $host:$port");
