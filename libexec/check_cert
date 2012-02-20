@@ -214,7 +214,7 @@ sub parse_certificate {
         } elsif ($line =~ /^\s+Not After : (.*)$/ ){
             #print STDERR "DEBUG after: $line\n";
             $result{'not_after'} = str2time($1);
-        } elsif ($line =~ /^\s+Subject:.*CN=(.*)$/ ){
+        } elsif ($line =~ /^\s+Subject:.*CN=([^\/]*)(\/|$)/ ){
             #print STDERR "DEBUG CN: $line\n";
             $result{'cn'} = $1;
         #} else {
