@@ -1,0 +1,13 @@
+#!/bin/sh
+
+streamUrl="$1"
+
+rtmpdump --quiet --live --stop 2 --flv /dev/null --timeout 10 -r "${streamUrl}"
+
+if [ $? -eq 0 ]; then
+    echo "Streaming successful: ${streamUrl}"
+    exit 0
+else
+    echo "Streaming failed: ${streamUrl}"
+    exit 2
+fi
