@@ -73,15 +73,15 @@ sub grok {
 
 			if (/expiration date:\s*(\d\d-\w\w\w-\d\d\d\d)/i) {
 				$expires = $1;
-			} elsif (/record expires on (.*)/i) {
+			} elsif (/record expires on ([^\.]*)/i) {
 				$expires = $1;
 			} elsif (/^expires:\s+([-\w]+)/i) {
 				$expires = $1;
-			} elsif (/^domain expiration date:\s+(.*)/i) {
+			} elsif (/^domain expiration date:\s+([^\.]*)/i) {
 				$expires = $1;
-			} elsif (/Renewal date:\s+(.*)/i) {
+			} elsif (/Renewal date:\s+([^\.]*)/i) {
 				$expires = $1;
-			} elsif (/Expiration Date:\s+(.*)/i) {
+			} elsif (/Expiration Date:\s+([^\.]*)/i) {
 				$expires = $1;
 			}
 
