@@ -116,7 +116,7 @@ sub grok {
 	}
 
 	critical("$name registered with '$registrar' has status '$status' and expires '$expires'.") if ($t - time < (86400*7));
-	warning ("$name registered with '$registrar' has status '$status' and expires '$expires'.") if ($t - time < (86400*28));
+	warning ("$name registered with '$registrar' has status '$status' and expires '$expires'.") if ($t - time < (86400*14));
 	success ("$name registered with '$registrar' has status '$status' and expires '$expires'.");
 }
 
